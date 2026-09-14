@@ -88,8 +88,10 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     final Settings mSettings;
     private Locale mLocale;
     final InputLogic mInputLogic = new InputLogic(this /* LatinIME */);
-
-    // TODO: Move these {@link View}s to {@link KeyboardSwitcher}.
+    private long mLabKeypressCount = 0;
+    private long mLabSessionStartMillis = 0;
+    
+        // TODO: Move these {@link View}s to {@link KeyboardSwitcher}.
     private View mInputView;
 
     private RichInputMethodManager mRichImm;
@@ -726,12 +728,39 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     }
 
     // Implementation of {@link KeyboardActionListener}.
-    @Override
-    public void onCodeInput(final int codePoint, final int x, final int y,
-            final boolean isKeyRepeat) {
-        final Event event = createSoftwareKeypressEvent(getCodePointForKeyboard(codePoint), isKeyRepeat);
-        onEvent(event);
+   // @Override
+    //public void onCodeInput(final int codePoint, final int x, final int y,
+    //        final boolean isKeyRepeat) {
+      //  final Event event = createSoftwareKeypressEvent(getCodePointForKeyboard(codePoint), isKeyRepeat);
+        //onEvent(event);
+    //}
+
+    private boolean isSensitiveInputField() {
+    final EditorInfo editorInfo = getCurrentInputEditorInfo();
+    if (editorInfo == null) {
+        return true;
     }
+
+    final int variation = editorInfo.inputType & InputType.TYPE_MASK_VARIATION;
+    return variation == InputType.TYPE_TEXT_VARIATION_PASSWORD
+            || variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+            || variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
+            || variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD;
+}
+    @Override
+public void onCodeInput(final int codePoint, final int x, final int y,
+        final boolean isKeyRepeat) {
+    if (!isSensitiveInputField()) {
+        if (mLabSessionStartMillis == 0) {
+            mLabSessionStartMillis = System.currentTimeMillis();
+        }
+        mLabKeypressCount++;
+    }
+
+    final Event event = createSoftwareKeypressEvent(
+            getCodePointForKeyboard(codePoint), isKeyRepeat);
+    onEvent(event);
+}
 
     // This method is public for testability of LatinIME, but also in the future it should
     // completely replace #onCodeInput.
